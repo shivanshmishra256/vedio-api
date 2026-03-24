@@ -1,27 +1,16 @@
-const OpenAI = require('openai');
+const { MsEdgeTTS, OUTPUT_FORMAT } = require('msedge-tts');
 const fs = require('fs');
 const path = require('path');
-
-let openai = null;
-
-const getClient = () => {
-  if (!openai) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
-  }
-  return openai;
-};
 
 // Voice mapping based on language + gender
 const VOICE_MAP = {
   english: {
-    male: 'onyx',     // deep tone
-    female: 'nova'    // soft tone
+    male: 'en-US-GuyNeural',
+    female: 'en-US-JennyNeural'
   },
   hindi: {
-    male: 'echo',     // deep tone, Hindi-compatible
-    female: 'shimmer' // soft tone, Hindi-compatible
+    male: 'hi-IN-MadhurNeural',
+    female: 'hi-IN-SwaraNeural'
   }
 };
 
@@ -49,16 +38,24 @@ const generateAudio = async (sceneText, options, sceneNumber) => {
     const fileName = `audio_scene_${sceneNumber}.mp3`;
     const filePath = path.join(outputDir, fileName);
 
-    const response = await getClient().audio.speech.create({
-      model: 'gpt-4o-mini-tts',
-      voice: selectedVoice,
-      input: sceneText,
-      response_format: 'mp3'
-    });
+    const tts = new MsEdgeTTS();
+    await tts.setMetadata(selectedVoice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
 
-    // Write audio buffer to file
-    const buffer = Buffer.from(await response.arrayBuffer());
-    fs.writeFileSync(filePath, buffer);
+    const readable = tts.toStream(sceneText);
+
+    // Collect audio chunks and write to file
+    const chunks = [];
+    await new Promise((resolve, reject) => {
+      readable.on('data', (chunk) => {
+        chunks.push(chunk);
+      });
+      readable.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        fs.writeFileSync(filePath, buffer);
+        resolve();
+      });
+      readable.on('error', reject);
+    });
 
     console.log(`Audio generated: ${fileName}`);
     return filePath;

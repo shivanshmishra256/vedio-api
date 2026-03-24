@@ -1,14 +1,12 @@
-const OpenAI = require('openai');
+const { GoogleGenAI } = require('@google/genai');
 
-let openai = null;
+let genai = null;
 
 const getClient = () => {
-  if (!openai) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
+  if (!genai) {
+    genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   }
-  return openai;
+  return genai;
 };
 
 const SYSTEM_PROMPT = `You are a professional cinematic scene writer. Convert user text into multiple short 3D animation scenes. Always respond with valid JSON only, no extra text or markdown.`;
@@ -38,17 +36,17 @@ const generateScenes = async (promptData) => {
   try {
     const { text, language, duration } = promptData;
 
-    const response = await getClient().chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: buildUserPrompt(text, language, duration) }
-      ],
-      temperature: 0.7,
-      max_tokens: 2000
+    const response = await getClient().models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: buildUserPrompt(text, language, duration),
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+        temperature: 0.7,
+        maxOutputTokens: 2000
+      }
     });
 
-    const content = response.choices[0].message.content.trim();
+    const content = response.text.trim();
 
     // Clean markdown code fences if present
     const cleaned = content
