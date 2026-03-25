@@ -9,6 +9,10 @@ const toPublicUrl = (req, absPath) => {
     return null;
   }
 
+  if (/^https?:\/\//i.test(String(absPath))) {
+    return String(absPath);
+  }
+
   const projectRoot = path.join(__dirname, '..');
   const relativePath = path.relative(projectRoot, absPath);
   if (!relativePath || relativePath.startsWith('..')) {

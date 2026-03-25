@@ -13,6 +13,11 @@ const ensureDir = (dirPath) => {
   }
 };
 
+const REMOTE_FALLBACK_VIDEOS = [
+  'https://www.w3schools.com/html/mov_bbb.mp4',
+  'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4'
+];
+
 const COLOR_PALETTES = [
   { bg: 'navy', accent: 'deepskyblue' },
   { bg: 'darkgreen', accent: 'lightgreen' },
@@ -30,6 +35,14 @@ const hashString = (value) => {
     hash |= 0;
   }
   return Math.abs(hash);
+};
+
+const isRemoteUrl = (value) => /^https?:\/\//i.test(String(value || ''));
+
+const getFallbackVideoUrl = (sceneText, index) => {
+  const hash = hashString(`${sceneText}-${index}`);
+  const baseUrl = REMOTE_FALLBACK_VIDEOS[hash % REMOTE_FALLBACK_VIDEOS.length];
+  return `${baseUrl}?scene=${index}&v=${hash}`;
 };
 
 const getSceneProfile = (sceneText, index) => {
@@ -78,7 +91,9 @@ const generateSceneVideo = async (scene, index, requestId = 'default', retryCoun
       return generateSceneVideo(scene, index, requestId, retryCount + 1);
     }
     console.error(`Error generating video for scene ${index}:`, error.message);
-    return null;
+    const fallbackUrl = getFallbackVideoUrl(scene.scene_description, index);
+    console.warn(`Using fallback remote video for scene ${index}: ${fallbackUrl}`);
+    return fallbackUrl;
   }
 };
 
@@ -116,6 +131,7 @@ const mergeVideosWithAudio = async (scenes, requestId = 'default') => {
   ensureDir(finalDir);
 
   const mergedClips = [];
+  const remoteClips = [];
 
   // 1. Merge audio and video for each scene
   for (let i = 0; i < scenes.length; i++) {
@@ -124,6 +140,15 @@ const mergeVideosWithAudio = async (scenes, requestId = 'default') => {
     const audioPath = scene.audio_path || scene.audio_url;
 
     if (videoPath) {
+      if (isRemoteUrl(videoPath)) {
+        remoteClips.push(videoPath);
+        continue;
+      }
+
+      if (!fs.existsSync(videoPath)) {
+        continue;
+      }
+
       console.log(`Merging audio+video for scene ${scene.scene_number || i + 1}...`);
       const mergedPath = path.join(mergedDir, `merged_scene_${scene.scene_number || i + 1}.mp4`);
       
@@ -138,6 +163,9 @@ const mergeVideosWithAudio = async (scenes, requestId = 'default') => {
 
   // 2. Concatenate all merged clips into a final video
   if (mergedClips.length === 0) {
+    if (remoteClips.length > 0) {
+      return remoteClips[0];
+    }
     throw new Error('No valid clips to merge for final video.');
   }
 
