@@ -35,30 +35,24 @@ const generateAudio = async (sceneText, options, sceneNumber) => {
     const outputDir = path.join(__dirname, '..', 'outputs', 'audio');
     ensureDir(outputDir);
 
-    const fileName = `audio_scene_${sceneNumber}.mp3`;
-    const filePath = path.join(outputDir, fileName);
+    const fileName = `audio_scene_${sceneNumber}`;
+    const sceneDir = path.join(outputDir, fileName);
+    ensureDir(sceneDir);
 
     const tts = new MsEdgeTTS();
     await tts.setMetadata(selectedVoice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
 
-    const readable = tts.toStream(sceneText);
+    const { audioFilePath } = await tts.toFile(sceneDir, sceneText);
+    const ext = path.extname(audioFilePath) || '.mp3';
+    const finalPath = path.join(outputDir, `${fileName}${ext}`);
 
-    // Collect audio chunks and write to file
-    const chunks = [];
-    await new Promise((resolve, reject) => {
-      readable.on('data', (chunk) => {
-        chunks.push(chunk);
-      });
-      readable.on('end', () => {
-        const buffer = Buffer.concat(chunks);
-        fs.writeFileSync(filePath, buffer);
-        resolve();
-      });
-      readable.on('error', reject);
-    });
+    if (fs.existsSync(finalPath)) {
+      fs.unlinkSync(finalPath);
+    }
 
-    console.log(`Audio generated: ${fileName}`);
-    return filePath;
+    fs.copyFileSync(audioFilePath, finalPath);
+    console.log(`Audio generated: ${path.basename(finalPath)}`);
+    return finalPath;
   } catch (error) {
     console.error(`Audio generation failed for scene ${sceneNumber}:`, error.message);
     return null;

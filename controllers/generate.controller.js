@@ -1,6 +1,22 @@
 const { generateScenes } = require('../services/ai.service');
 const { generateAudio } = require('../services/audio.service');
 const { generateSceneVideo, mergeVideosWithAudio } = require('../services/video.service');
+const path = require('path');
+
+const toPublicUrl = (req, absPath) => {
+  if (!absPath) {
+    return null;
+  }
+
+  const projectRoot = path.join(__dirname, '..');
+  const relativePath = path.relative(projectRoot, absPath);
+  if (!relativePath || relativePath.startsWith('..')) {
+    return null;
+  }
+
+  const normalized = `/${relativePath.split(path.sep).join('/')}`;
+  return `${req.protocol}://${req.get('host')}${normalized}`;
+};
 
 const handleGenerate = async (req, res) => {
   try {
@@ -51,31 +67,38 @@ const handleGenerate = async (req, res) => {
         { language: cleanLanguage, voice: cleanVoice },
         sceneIndex
       );
-      scene.audio_url = audioPath || null;
+      scene.audio_path = audioPath || null;
 
       // Generate Video
       const videoPath = await generateSceneVideo(scene, sceneIndex);
-      scene.video_url = videoPath || null;
+      scene.video_path = videoPath || null;
     }
 
     // Step 4: Merge videos with audio and combine into final video
     console.log('Merging videos with audio...');
     let finalVideoUrl = null;
     try {
-      finalVideoUrl = await mergeVideosWithAudio(scenes);
+      const finalVideoPath = await mergeVideosWithAudio(scenes);
+      finalVideoUrl = toPublicUrl(req, finalVideoPath);
     } catch (mergeError) {
       console.error('Final merging failed:', mergeError.message);
       // We can continue and return what we have so far
     }
 
+    const responseScenes = scenes.map((scene) => ({
+      ...scene,
+      audio_url: toPublicUrl(req, scene.audio_path),
+      video_url: toPublicUrl(req, scene.video_path)
+    }));
+
     return res.status(200).json({
       message: 'Video generated successfully',
       final_video_url: finalVideoUrl,
-      scenes
+      scenes: responseScenes
     });
   } catch (error) {
     console.error('Controller Error:', error.message);
-    return res.status(500).json({ error: 'Failed to generate scenes and videos' });
+    return res.status(500).json({ error: 'Failed to generate scenes and videos', details: error.message });
   }
 };
 

@@ -1,7 +1,12 @@
 const ffmpeg = require('fluent-ffmpeg');
+const ffmpegPath = require('ffmpeg-static');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+
+if (ffmpegPath) {
+  ffmpeg.setFfmpegPath(ffmpegPath);
+}
 
 const ensureDir = (dirPath) => {
   if (!fs.existsSync(dirPath)) {
@@ -23,7 +28,7 @@ const generateSceneVideo = async (scene, index, retryCount = 0) => {
     // Simulate calling an AI Video Generation API
     const payload = {
       prompt: scene.scene_description,
-      style: "3D animation cinematic",
+      style: '3D animation cinematic',
       camera: scene.camera_angle,
       mood: scene.mood
     };
@@ -97,12 +102,15 @@ const mergeVideosWithAudio = async (scenes) => {
   // 1. Merge audio and video for each scene
   for (let i = 0; i < scenes.length; i++) {
     const scene = scenes[i];
-    if (scene.video_url) {
+    const videoPath = scene.video_path || scene.video_url;
+    const audioPath = scene.audio_path || scene.audio_url;
+
+    if (videoPath) {
       console.log(`Merging audio+video for scene ${scene.scene_number || i + 1}...`);
       const mergedPath = path.join(mergedDir, `merged_scene_${scene.scene_number || i + 1}.mp4`);
       
       try {
-        await mergeAudioVideo(scene.video_url, scene.audio_url, mergedPath);
+        await mergeAudioVideo(videoPath, audioPath, mergedPath);
         mergedClips.push(mergedPath);
       } catch (err) {
         console.error(`Skipping scene ${scene.scene_number || i + 1} due to merge error.`);

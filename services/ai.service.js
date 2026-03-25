@@ -32,6 +32,27 @@ Text:
 ${text}`;
 };
 
+const buildFallbackScenes = (text, language, duration) => {
+  const cleanText = String(text || '').trim();
+  const parts = cleanText
+    .split(/[.!?\n]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const source = parts.length > 0 ? parts : [cleanText || 'A cinematic visual story sequence'];
+  const maxScenes = Math.min(4, Math.max(2, Math.ceil(duration / 5)));
+  const selected = source.slice(0, maxScenes);
+
+  return selected.map((line, index) => ({
+    scene_number: index + 1,
+    scene_description: line,
+    characters: 'Primary and supporting characters',
+    environment: 'Detailed 3D cinematic environment',
+    camera_angle: index % 2 === 0 ? 'Wide shot' : 'Close-up',
+    mood: index % 2 === 0 ? 'Epic and emotional' : 'Warm and engaging'
+  }));
+};
+
 const generateScenes = async (promptData) => {
   try {
     const { text, language, duration } = promptData;
@@ -58,8 +79,25 @@ const generateScenes = async (promptData) => {
     const scenes = JSON.parse(cleaned);
     return scenes;
   } catch (error) {
-    console.error('AI Service Error:', error.message);
-    throw new Error('Failed to generate scenes');
+    const errorText = [
+      error && error.message ? String(error.message) : '',
+      error && error.status ? String(error.status) : '',
+      error ? JSON.stringify(error) : ''
+    ].join(' ');
+
+    const isUpstreamAiFailure = /quota|rate|resource_exhausted|api key|unauthori|permission|429|generate_content|gemini/i.test(errorText);
+
+    console.error('AI Service Error: Failed to generate scenes', error.message || error);
+
+    if (isUpstreamAiFailure) {
+      console.warn('Gemini request failed. Using fallback scene generation.');
+      const { text, language, duration } = promptData;
+      return buildFallbackScenes(text, language, duration);
+    }
+
+    console.warn('Unexpected AI formatting issue. Using fallback scene generation.');
+    const { text, language, duration } = promptData;
+    return buildFallbackScenes(text, language, duration);
   }
 };
 
