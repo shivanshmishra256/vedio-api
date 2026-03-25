@@ -26,13 +26,13 @@ const ensureDir = (dirPath) => {
   }
 };
 
-const generateAudio = async (sceneText, options, sceneNumber) => {
+const generateAudio = async (sceneText, options, sceneNumber, requestId = 'default') => {
   try {
     const { language = 'english', voice = 'male' } = options;
 
     const selectedVoice = getVoice(language, voice);
 
-    const outputDir = path.join(__dirname, '..', 'outputs', 'audio');
+    const outputDir = path.join(__dirname, '..', 'outputs', 'audio', requestId);
     ensureDir(outputDir);
 
     const fileName = `audio_scene_${sceneNumber}`;

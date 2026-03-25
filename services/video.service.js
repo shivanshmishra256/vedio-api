@@ -2,7 +2,6 @@ const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
 const fs = require('fs');
 const path = require('path');
-const axios = require('axios');
 
 if (ffmpegPath) {
   ffmpeg.setFfmpegPath(ffmpegPath);
@@ -14,50 +13,69 @@ const ensureDir = (dirPath) => {
   }
 };
 
-const DUMMY_VIDEO_URL = 'https://www.w3schools.com/html/mov_bbb.mp4';
+const COLOR_PALETTES = [
+  { bg: 'navy', accent: 'deepskyblue' },
+  { bg: 'darkgreen', accent: 'lightgreen' },
+  { bg: 'darkred', accent: 'orange' },
+  { bg: 'purple', accent: 'violet' },
+  { bg: 'teal', accent: 'cyan' },
+  { bg: 'maroon', accent: 'pink' }
+];
 
-const generateSceneVideo = async (scene, index, retryCount = 0) => {
+const hashString = (value) => {
+  let hash = 0;
+  const input = String(value || 'scene');
+  for (let i = 0; i < input.length; i++) {
+    hash = ((hash << 5) - hash) + input.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+};
+
+const getSceneProfile = (sceneText, index) => {
+  const hash = hashString(`${sceneText}-${index}`);
+  const palette = COLOR_PALETTES[hash % COLOR_PALETTES.length];
+  const duration = 3 + (hash % 4); // 3-6 seconds
+  return {
+    ...palette,
+    duration,
+    speed: 80 + (hash % 120)
+  };
+};
+
+const createDynamicSceneClip = (filePath, profile) => {
+  return new Promise((resolve, reject) => {
+    ffmpeg()
+      .input(`color=c=${profile.bg}:s=1280x720:d=${profile.duration}`)
+      .inputFormat('lavfi')
+      .videoFilters(['format=yuv420p'])
+      .videoCodec('libx264')
+      .outputOptions(['-r 24', '-preset veryfast', '-movflags +faststart'])
+      .noAudio()
+      .on('end', () => resolve(filePath))
+      .on('error', (err) => reject(err))
+      .save(filePath);
+  });
+};
+
+const generateSceneVideo = async (scene, index, requestId = 'default', retryCount = 0) => {
   try {
-    const outputDir = path.join(__dirname, '..', 'outputs', 'video');
+    const outputDir = path.join(__dirname, '..', 'outputs', 'video', requestId);
     ensureDir(outputDir);
     const fileName = `scene_${index}.mp4`;
     const filePath = path.join(outputDir, fileName);
 
     console.log(`Generating video for scene ${index}...`);
 
-    // Simulate calling an AI Video Generation API
-    const payload = {
-      prompt: scene.scene_description,
-      style: '3D animation cinematic',
-      camera: scene.camera_angle,
-      mood: scene.mood
-    };
-
-    // If using a real API (like Replicate/Runway), you would make a POST request here
-    // and extract the resulting video URL. We will use a fallback/dummy for now.
-    const videoUrl = DUMMY_VIDEO_URL;
-
-    // Download video
-    const response = await axios({
-      method: 'GET',
-      url: videoUrl,
-      responseType: 'stream'
-    });
-
-    const writer = fs.createWriteStream(filePath);
-    response.data.pipe(writer);
-
-    await new Promise((resolve, reject) => {
-      writer.on('finish', resolve);
-      writer.on('error', reject);
-    });
+    const profile = getSceneProfile(scene.scene_description, index);
+    await createDynamicSceneClip(filePath, profile);
 
     console.log(`Video generated for scene ${index}: ${fileName}`);
     return filePath;
   } catch (error) {
     if (retryCount < 1) {
       console.log(`Video generation failed for scene ${index}. Retrying...`);
-      return generateSceneVideo(scene, index, retryCount + 1);
+      return generateSceneVideo(scene, index, requestId, retryCount + 1);
     }
     console.error(`Error generating video for scene ${index}:`, error.message);
     return null;
@@ -91,9 +109,9 @@ const mergeAudioVideo = (videoPath, audioPath, outputPath) => {
   });
 };
 
-const mergeVideosWithAudio = async (scenes) => {
-  const mergedDir = path.join(__dirname, '..', 'outputs', 'merged');
-  const finalDir = path.join(__dirname, '..', 'outputs', 'final');
+const mergeVideosWithAudio = async (scenes, requestId = 'default') => {
+  const mergedDir = path.join(__dirname, '..', 'outputs', 'merged', requestId);
+  const finalDir = path.join(__dirname, '..', 'outputs', 'final', requestId);
   ensureDir(mergedDir);
   ensureDir(finalDir);
 
@@ -123,7 +141,7 @@ const mergeVideosWithAudio = async (scenes) => {
     throw new Error('No valid clips to merge for final video.');
   }
 
-  const finalOutputPath = path.join(finalDir, 'final_video.mp4');
+  const finalOutputPath = path.join(finalDir, `final_video_${requestId}.mp4`);
   console.log(`Concatenating ${mergedClips.length} clips into final video...`);
 
   return new Promise((resolve, reject) => {

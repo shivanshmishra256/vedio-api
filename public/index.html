@@ -60,7 +60,35 @@
         <h2>Generation Result</h2>
         <a id="finalVideoLink" class="final-link hidden" target="_blank" rel="noreferrer">Open Final Video</a>
       </div>
-      <div id="scenesContainer" class="scene-list"></div>
+
+      <div class="result-layout">
+        <div class="result-main">
+          <video id="finalVideoPreview" class="final-video hidden" controls></video>
+          <div id="scenesContainer" class="scene-list"></div>
+        </div>
+
+        <aside class="assistant-side">
+          <h3>AI Video Assistant</h3>
+          <p class="assistant-note">Video banne ke baad yahan prompt do, assistant video edit karke de dega.</p>
+
+          <form id="editForm" class="assistant-form">
+            <label class="field field-full">
+              <span>Edit Prompt</span>
+              <textarea id="editInstruction" name="editInstruction" rows="4" placeholder="Example: trim from 1 to 5 sec, make black and white, add text Sunrise Dream" required></textarea>
+            </label>
+
+            <div class="actions field-full">
+              <button id="editBtn" type="submit">Edit Video</button>
+              <p id="editStatusText" class="status">Generate a video first.</p>
+            </div>
+          </form>
+
+          <div id="editResult" class="hidden">
+            <a id="editedVideoLink" class="final-link hidden" target="_blank" rel="noreferrer">Open Edited Video</a>
+            <video id="editedVideoPreview" class="final-video hidden" controls></video>
+          </div>
+        </aside>
+      </div>
     </section>
   </main>
 
