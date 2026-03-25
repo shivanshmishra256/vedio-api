@@ -127,11 +127,17 @@ const mergeAudioVideo = (videoPath, audioPath, outputPath) => {
 const mergeVideosWithAudio = async (scenes, requestId = 'default') => {
   const mergedDir = path.join(__dirname, '..', 'outputs', 'merged', requestId);
   const finalDir = path.join(__dirname, '..', 'outputs', 'final', requestId);
-  ensureDir(mergedDir);
-  ensureDir(finalDir);
 
   const mergedClips = [];
   const remoteClips = [];
+
+  let canWriteLocal = true;
+  try {
+    ensureDir(mergedDir);
+    ensureDir(finalDir);
+  } catch (error) {
+    canWriteLocal = false;
+  }
 
   // 1. Merge audio and video for each scene
   for (let i = 0; i < scenes.length; i++) {
@@ -146,6 +152,10 @@ const mergeVideosWithAudio = async (scenes, requestId = 'default') => {
       }
 
       if (!fs.existsSync(videoPath)) {
+        continue;
+      }
+
+      if (!canWriteLocal) {
         continue;
       }
 
