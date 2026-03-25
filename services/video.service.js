@@ -24,12 +24,24 @@ const KEYWORD_VIDEO_MAP = [
     url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4'
   },
   {
+    keywords: ['surya', 'sooraj', 'suryoday', 'प्रकृति', 'सूर्योदय', 'पहाड़', 'नदी', 'जंगल', 'पक्षी', 'समुद्र'],
+    url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4'
+  },
+  {
     keywords: ['city', 'urban', 'night', 'traffic', 'road', 'car', 'cyberpunk', 'street'],
+    url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4'
+  },
+  {
+    keywords: ['shahar', 'raat', 'sadak', 'गली', 'शहर', 'रात', 'सड़क', 'ट्रैफिक'],
     url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4'
   },
   {
     keywords: ['space', 'galaxy', 'planet', 'star', 'moon', 'universe', 'sci-fi'],
     url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4'
+  },
+  {
+    keywords: ['ram', 'sita', 'doha', 'tulsi', 'bhakti', 'mandir', 'spiritual', 'devotional', 'राम', 'सीता', 'दोहा', 'तुलसी', 'भक्ति', 'मंदिर', 'आध्यात्मिक'],
+    url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
   },
   {
     keywords: ['kids', 'fun', 'happy', 'dance', 'party', 'colorful'],

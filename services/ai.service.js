@@ -36,12 +36,12 @@ const buildFallbackScenes = (text, language, duration) => {
   const cleanText = String(text || '').trim();
   const parts = cleanText
     .split(/[.!?\n]+/)
-    .map((item) => item.trim())
+    .map((item) => item.replace(/^[-*\s]+/, '').trim())
     .filter(Boolean);
 
   const source = parts.length > 0 ? parts : [cleanText || 'A cinematic visual story sequence'];
   const maxScenes = Math.min(4, Math.max(2, Math.ceil(duration / 5)));
-  const selected = source.slice(0, maxScenes);
+  const selected = source.slice(0, maxScenes).map((line) => line.slice(0, 180));
 
   return selected.map((line, index) => ({
     scene_number: index + 1,
