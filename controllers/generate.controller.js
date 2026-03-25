@@ -159,14 +159,20 @@ const handleEditVideo = async (req, res) => {
     }
 
     const requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-    const { outputPath, edits } = await applyVideoEdits(inputPath, instruction, requestId);
+    const { outputPath, edits, isProjectPath } = await applyVideoEdits(inputPath, instruction, requestId);
+    const inputUrl = toPublicUrl(req, inputPath);
+    const editedUrl = toPublicUrl(req, outputPath) || inputUrl;
+    const warning = isProjectPath
+      ? null
+      : 'Edited file was generated in temporary storage due hosting filesystem limits. Returning accessible source URL.';
 
     return res.status(200).json({
       message: 'Video edited successfully',
       request_id: requestId,
-      input_video_url: toPublicUrl(req, inputPath),
-      edited_video_url: toPublicUrl(req, outputPath),
-      edit_plan: edits
+      input_video_url: inputUrl,
+      edited_video_url: editedUrl,
+      edit_plan: edits,
+      warning
     });
   } catch (error) {
     console.error('Edit Controller Error:', error.message);

@@ -2,6 +2,7 @@ const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 if (ffmpegPath) {
   ffmpeg.setFfmpegPath(ffmpegPath);
@@ -15,6 +16,20 @@ if (ffmpegPath) {
 const ensureDir = (dirPath) => {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
+  }
+};
+
+const resolveWritableOutputDir = (requestId) => {
+  const projectDir = path.join(__dirname, '..', 'outputs', 'edited', requestId);
+
+  try {
+    ensureDir(projectDir);
+    fs.accessSync(projectDir, fs.constants.W_OK);
+    return { dirPath: projectDir, isProjectPath: true };
+  } catch (error) {
+    const tempDir = path.join(os.tmpdir(), 'p4-edited', requestId);
+    ensureDir(tempDir);
+    return { dirPath: tempDir, isProjectPath: false };
   }
 };
 
@@ -163,8 +178,7 @@ const buildAudioTempoFilters = (speed) => {
 const applyVideoEdits = async (inputPath, instruction, requestId) => {
   const edits = parseEditInstruction(instruction);
 
-  const outputDir = path.join(__dirname, '..', 'outputs', 'edited', requestId);
-  ensureDir(outputDir);
+  const { dirPath: outputDir, isProjectPath } = resolveWritableOutputDir(requestId);
   const outputPath = path.join(outputDir, `edited_${requestId}.mp4`);
 
   return new Promise((resolve, reject) => {
@@ -217,7 +231,7 @@ const applyVideoEdits = async (inputPath, instruction, requestId) => {
     command
       .videoCodec('libx264')
       .outputOptions(['-movflags +faststart', '-pix_fmt yuv420p'])
-      .on('end', () => resolve({ outputPath, edits }))
+      .on('end', () => resolve({ outputPath, edits, isProjectPath }))
       .on('error', (err) => reject(err))
       .save(outputPath);
   });
