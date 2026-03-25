@@ -18,6 +18,29 @@ const REMOTE_FALLBACK_VIDEOS = [
   'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4'
 ];
 
+const KEYWORD_VIDEO_MAP = [
+  {
+    keywords: ['sunrise', 'morning', 'sunset', 'nature', 'mountain', 'river', 'forest', 'bird', 'ocean'],
+    url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4'
+  },
+  {
+    keywords: ['city', 'urban', 'night', 'traffic', 'road', 'car', 'cyberpunk', 'street'],
+    url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4'
+  },
+  {
+    keywords: ['space', 'galaxy', 'planet', 'star', 'moon', 'universe', 'sci-fi'],
+    url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4'
+  },
+  {
+    keywords: ['kids', 'fun', 'happy', 'dance', 'party', 'colorful'],
+    url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4'
+  },
+  {
+    keywords: ['action', 'battle', 'epic', 'adventure', 'hero'],
+    url: 'https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4'
+  }
+];
+
 const COLOR_PALETTES = [
   { bg: 'navy', accent: 'deepskyblue' },
   { bg: 'darkgreen', accent: 'lightgreen' },
@@ -39,10 +62,25 @@ const hashString = (value) => {
 
 const isRemoteUrl = (value) => /^https?:\/\//i.test(String(value || ''));
 
+const escapeDrawText = (value) => {
+  return String(value || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/:/g, '\\:')
+    .replace(/'/g, "\\'")
+    .replace(/,/g, '\\,');
+};
+
 const getFallbackVideoUrl = (sceneText, index) => {
+  const normalized = String(sceneText || '').toLowerCase();
+
+  for (const rule of KEYWORD_VIDEO_MAP) {
+    if (rule.keywords.some((keyword) => normalized.includes(keyword))) {
+      return rule.url;
+    }
+  }
+
   const hash = hashString(`${sceneText}-${index}`);
-  const baseUrl = REMOTE_FALLBACK_VIDEOS[hash % REMOTE_FALLBACK_VIDEOS.length];
-  return `${baseUrl}?scene=${index}&v=${hash}`;
+  return REMOTE_FALLBACK_VIDEOS[hash % REMOTE_FALLBACK_VIDEOS.length];
 };
 
 const getSceneProfile = (sceneText, index) => {
@@ -56,12 +94,19 @@ const getSceneProfile = (sceneText, index) => {
   };
 };
 
-const createDynamicSceneClip = (filePath, profile) => {
+const createDynamicSceneClip = (filePath, profile, sceneText) => {
+  const shortText = String(sceneText || 'Generated Scene').slice(0, 90);
+  const safeText = escapeDrawText(shortText);
+
   return new Promise((resolve, reject) => {
     ffmpeg()
       .input(`color=c=${profile.bg}:s=1280x720:d=${profile.duration}`)
       .inputFormat('lavfi')
-      .videoFilters(['format=yuv420p'])
+      .videoFilters([
+        'drawbox=x=0:y=h-150:w=w:h=150:color=black@0.45:t=fill',
+        `drawtext=text='${safeText}':fontcolor=white:fontsize=38:x=40:y=h-95`,
+        'format=yuv420p'
+      ])
       .videoCodec('libx264')
       .outputOptions(['-r 24', '-preset veryfast', '-movflags +faststart'])
       .noAudio()
@@ -81,7 +126,7 @@ const generateSceneVideo = async (scene, index, requestId = 'default', retryCoun
     console.log(`Generating video for scene ${index}...`);
 
     const profile = getSceneProfile(scene.scene_description, index);
-    await createDynamicSceneClip(filePath, profile);
+    await createDynamicSceneClip(filePath, profile, scene.scene_description);
 
     console.log(`Video generated for scene ${index}: ${fileName}`);
     return filePath;
